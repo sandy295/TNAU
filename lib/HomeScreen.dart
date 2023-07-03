@@ -1,6 +1,7 @@
+import 'dart:convert';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'dart:async';
-
 import 'package:flutter/services.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
@@ -9,34 +10,23 @@ import 'package:flutter_pytorch/flutter_pytorch.dart';
 import 'package:tnau_f/NewScreen1.dart';
 import 'package:tnau_f/NewScreen2.dart';
 import 'package:tnau_f/NewScreen3.dart';
-
-//import 'package:object_detection/LoaderState.dart';
-import 'package:url_launcher/url_launcher.dart';
-
-
+import 'package:http/http.dart' as http;
+//import 'package:object_detection/LoaderState.dart'
 import 'LoaderState.dart';
 import 'NewScreen.dart';
 import 'constant.dart';
-
-// _sendingMails() async {
-//   var url = Uri.parse("mailto:feedback@geeksforgeeks.org");
-//   if (await canLaunchUrl(url)) {
-//     await launchUrl(url);
-//   } else {
-//     throw 'Could not launch $url';
-//   }
-// }
-
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
-
 class _HomeScreenState extends State<HomeScreen> {
   late ModelObjectDetection _objectModel;
   String? _imagePrediction;
+  String? status = '';
+  static  var endpoint = Uri.parse("http://192.168.173./flutterr_test/upload.php");
+  String? base64Image;
   List? _prediction;
   File? _image;
   ImagePicker _picker = ImagePicker();
@@ -48,6 +38,46 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     loadModel();
+  }
+  setStatus(String msg){
+    setState(() {
+      status = msg;
+    });
+  }
+  void dioupload(File? image) async{
+    final Dio dio=new Dio();
+    try{
+      var response = await dio.get("");
+      print(response.statusCode);
+    }
+    on DioException catch (e){
+      print(e);
+    }
+}
+  Upload(file) async {
+    print("enterted uploads");
+    if(file == null){
+      return ;
+    }
+    final Dio dio=new Dio();
+    String filename = file.path.split('/').last;
+    print(filename);
+    print("Making http request");
+    final String baseurl = "http://192.168.115.28/opp.php";
+    FormData formdata = FormData.fromMap({
+      "file": await MultipartFile.fromFile(
+          file.path,
+          filename: filename
+      ),
+    });
+    Response response = await dio.post(baseurl,
+      data: formdata,);
+    if(response.statusCode == 200){
+      print(response.toString());
+      //print response from server
+    }else{
+      print("Error during connection to server.");
+    }
   }
 
   Future loadModel() async {
@@ -84,7 +114,12 @@ class _HomeScreenState extends State<HomeScreen> {
     //pick an image
 
     final XFile? image = await _picker.pickImage(source: ImageSource.camera);
-
+    Upload(image);
+    if(image!= null){
+      File? imgpath = File(image.path);
+      base64Image = base64Encode(imgpath!.readAsBytesSync());
+      //print(base64Image);
+    }
     objDetect = await _objectModel.getImagePrediction(
         await File(image!.path).readAsBytes(),
         minimumScore: 0.1,
@@ -110,7 +145,10 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {
       _image = File(image.path);
     });
+
+   // dioupload(_image);
   }
+
 
   @override
   Widget build(BuildContext context) {
